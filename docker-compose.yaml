@@ -1,0 +1,23 @@
+
+services:
+  db:
+    image: postgres:16.6
+    container_name: pvz-db
+    env_file:
+      - ".env"
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    ports:
+      - "${DATABASE_PORT}:${DATABASE_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U user -d pvz'"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+networks:
+  internal:

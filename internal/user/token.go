@@ -2,6 +2,7 @@ package user
 
 import (
 	"AvitoPVZ/internal/config"
+	"fmt"
 	"os"
 	"time"
 
@@ -19,5 +20,7 @@ func GenerateToken(userID uuid.UUID, role Role) (string, error) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, _ := token.SignedString(os.Getenv(config.JwtSecret))
+	fmt.Println("Token generated: ", signedToken)
 	return token.SignedString(os.Getenv(config.JwtSecret))
 }

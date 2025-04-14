@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -58,17 +57,12 @@ func runMain(ctx context.Context) error {
 		return fmt.Errorf("pg config: %w", err)
 	}
 
-	port, err := strconv.Atoi(pgConfig.Port)
-	if err != nil {
-		return fmt.Errorf("invalid port: %w", err)
-	}
-
 	db, err := postgres.New(
 		ctx,
 		postgres.WithUser(pgConfig.Username),
 		postgres.WithPassword(pgConfig.Password),
 		postgres.WithHost(pgConfig.Host),
-		postgres.WithPort(port),
+		postgres.WithPort(pgConfig.Port),
 		postgres.WithDBName(pgConfig.DBName),
 		postgres.WithSSLMode(pgConfig.SSLMode),
 	)

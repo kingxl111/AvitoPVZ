@@ -76,7 +76,7 @@ func (a ObservabilityHTTPConfig) ADDR() string {
 
 type PostgresConfig struct {
 	Host     string `env:"HOST,default=localhost"`
-	Port     int    `env:"PORT,default=5432"`
+	Port     string `env:"PORT,default=5432"`
 	DBName   string `env:"DB_NAME,default=dm_live"`
 	User     string `env:"USER,default=postgres"`
 	Password string `env:"PASSWORD,default=postgres"`

@@ -21,7 +21,7 @@ const (
 
 type config struct {
 	Host            string
-	Port            int
+	Port            string
 	User            string
 	Password        string
 	DBName          string
@@ -41,7 +41,7 @@ func WithHost(host string) Option {
 	}
 }
 
-func WithPort(port int) Option {
+func WithPort(port string) Option {
 	return func(c *config) {
 		c.Port = port
 	}
@@ -92,7 +92,7 @@ func WithMaxConnIdleTime(maxConnIdleTime time.Duration) Option {
 func newConfig(opts ...Option) *config {
 	cfg := &config{
 		Host:            "localhost",
-		Port:            5432,
+		Port:            "5432",
 		User:            "postgres",
 		Password:        "postgres",
 		DBName:          "postgres",
@@ -137,9 +137,17 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 		return conn.Ping(pCtx) == nil
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, pgxConfig)
+	//fmt.Println("Creating connection beginning")
+	//pool, err := pgxpool.NewWithConfig(ctx, pgxConfig)
+	//fmt.Printf("postgres://%s:%s@%s:%s/%s?sslmode=%s\n", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+	pool, err := pgxpool.New(ctx, connString)
 	if err != nil {
 		return nil, fmt.Errorf("create connection pool: %w", err)
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		return nil, fmt.Errorf("database ping failed: %w", err)
 	}
 
 	return &DB{Pool: pool}, nil
@@ -152,7 +160,7 @@ func pgxDSN(cfg *config) string {
 	fmt.Fprintf(&buf, "user=%s ", cfg.User)
 	fmt.Fprintf(&buf, "password=%s ", cfg.Password)
 	fmt.Fprintf(&buf, "host=%s ", cfg.Host)
-	fmt.Fprintf(&buf, "port=%d ", cfg.Port)
+	fmt.Fprintf(&buf, "port=%s ", cfg.Port)
 	fmt.Fprintf(&buf, "sslmode=%s ", cfg.SSLMode)
 	fmt.Fprintf(&buf, "connect_timeout=%d ", cfg.ConnTimeout)
 	fmt.Fprintf(&buf, "pool_min_conns=%d ", cfg.MinConns)

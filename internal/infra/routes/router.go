@@ -3,12 +3,12 @@ package routes
 import (
 	"AvitoPVZ/internal/config"
 	"AvitoPVZ/internal/infra/httpfunc/middleware"
-	"AvitoPVZ/internal/infra/httpfunc/middleware/chimw"
+	"AvitoPVZ/internal/infra/httpfunc/middleware/authmw"
 	"AvitoPVZ/internal/infra/httpfunc/middleware/loggingmw"
 	"AvitoPVZ/internal/infra/httpfunc/middleware/recoverymw"
 	"AvitoPVZ/internal/infra/httpfunc/middleware/requestidmw"
 	"AvitoPVZ/internal/infra/httpfunc/middleware/timeoutmw"
-	"AvitoPVZ/pkg/api/oapigen/pvzops"
+	"AvitoPVZ/internal/ingress/gates/apihandler"
 	"context"
 	"log/slog"
 	"net/http"
@@ -19,9 +19,9 @@ import (
 
 func Router(
 	ctx context.Context,
-	_ config.Config,
+	cfg config.Config,
 	lg *slog.Logger,
-	apiHandler pvzops.ServerInterface,
+	handler *apihandler.Handler,
 ) http.Handler {
 	router := chi.NewRouter()
 
@@ -32,11 +32,9 @@ func Router(
 		return nil
 	}
 
-	const timeout = 30 * time.Second
-
 	router.Use(
 		requestidmw.PopulateRequestID(lg),
-		timeoutmw.TimeoutMiddleware(timeoutmw.WithTimeout(timeout)),
+		timeoutmw.TimeoutMiddleware(timeoutmw.WithTimeout(30*time.Second)),
 		recoverymw.Recovery(lg, extractRequestID),
 		loggingmw.LoggingMiddleware(
 			ctx, lg,
@@ -44,27 +42,31 @@ func Router(
 			loggingmw.WithExtractors(extractRequestID),
 			loggingmw.WithSensitiveHeaders(middleware.BasicAuthReplacer),
 		),
-		chimw.MetricsMiddlewareBuilder(
-			chimw.MetricsMiddlewareOpts{
-				GroupPathPattern: true,
-			},
-		),
 	)
-	router.Mount(
-		"/pvzops/v1", pvzops.HandlerWithOptions(
-			apiHandler, pvzops.StdHTTPServerOptions{
-				ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-					lg.Error("error handler func", "error", err)
-					w.WriteHeader(http.StatusBadRequest)
-				},
-			},
-		),
-	)
-	router.HandleFunc(
-		"/pvzops/health", func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		},
-	)
+
+	router.Group(func(r chi.Router) {
+		r.Post("/dummyLogin", handler.PostDummyLogin)
+		r.Post("/register", handler.PostRegister)
+		r.Post("/login", handler.PostLogin)
+	})
+
+	router.Group(func(r chi.Router) {
+		r.Use(authmw.AuthMiddleware)
+
+		r.Route("/pvz", func(pvzRouter chi.Router) {
+			pvzRouter.Post("/", func(writer http.ResponseWriter, request *http.Request) {})
+			pvzRouter.Get("/", func(writer http.ResponseWriter, request *http.Request) {})
+			pvzRouter.Post("/{pvzId}/close_last_reception", func(writer http.ResponseWriter, request *http.Request) {})
+			pvzRouter.Post("/{pvzId}/delete_last_product", func(writer http.ResponseWriter, request *http.Request) {})
+		})
+
+		r.Post("/receptions", func(writer http.ResponseWriter, request *http.Request) {})
+		r.Post("/products", func(writer http.ResponseWriter, request *http.Request) {})
+	})
+
+	router.HandleFunc("/pvzops/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
 	return router
 }

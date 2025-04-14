@@ -1,7 +1,6 @@
 package environment
 
 import (
-	"AvitoPVZ/internal/infra/httpfunc/middleware/authmw"
 	"context"
 	"github.com/pkg/errors"
 	"log/slog"
@@ -57,7 +56,6 @@ func (o *ServerOptions) NewServer(handler http.Handler, addr string) *http.Serve
 
 	wrappedHandler = o.loggingMiddleware(wrappedHandler)
 	wrappedHandler = o.recoveryMiddleware(wrappedHandler)
-	wrappedHandler = authmw.AuthMiddleware(wrappedHandler)
 
 	srv := &http.Server{
 		Handler: wrappedHandler,

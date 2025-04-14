@@ -4,20 +4,19 @@ import (
 	"AvitoPVZ/internal/config"
 	"AvitoPVZ/internal/environment"
 	"AvitoPVZ/internal/infra/postgres"
+	"AvitoPVZ/internal/infra/routes"
 	"AvitoPVZ/internal/ingress/gates/apihandler"
 	prodStory "AvitoPVZ/internal/product/story"
 	pvzStory "AvitoPVZ/internal/pvz/story"
 	receiptStory "AvitoPVZ/internal/receipt/story"
 	"AvitoPVZ/internal/storage/pgstore"
 	userStory "AvitoPVZ/internal/user/story"
-	"AvitoPVZ/pkg/api/oapigen/pvzops"
 	"AvitoPVZ/pkg/xpgx"
 	"AvitoPVZ/pkg/xpgx/transaction"
 	"context"
 	"flag"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -98,10 +97,13 @@ func runMain(ctx context.Context) error {
 	var opts environment.ServerOptions
 	opts.WithLogger(logger)
 	handler := apihandler.New(logger, userSt, pvzSt, productSt, receiptSt)
-	mux := http.NewServeMux()
-	apiHandler := pvzops.HandlerFromMux(handler, mux)
-	httpServer := opts.NewServer(apiHandler, httpServerConfig.Address())
-
+	router := routes.Router(
+		ctx,
+		config.Config{},
+		logger,
+		handler,
+	)
+	httpServer := opts.NewServer(router, httpServerConfig.Address())
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
